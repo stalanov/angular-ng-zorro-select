@@ -1,5 +1,8 @@
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormGroup, FormControl } from '@angular/forms';
+import { of, Subscription } from 'rxjs';
+import { debounceTime, mergeMap } from 'rxjs/operators';
 
 @Component({
   selector: 'nz-demo-select-big-data',
@@ -10,7 +13,6 @@ import { FormGroup, FormControl } from '@angular/forms';
       nzMode="multiple"
       nzPlaceHolder="Please select"
       [nzOptions]="listOfOption"
-      [(ngModel)]="listOfSelectedValue"
       formControlName="list"
     ></nz-select>
   </form>
@@ -18,21 +20,41 @@ import { FormGroup, FormControl } from '@angular/forms';
   styles: [
     `
       nz-select {
+        padding: 16px;
         width: 100%;
       }
     `,
   ],
 })
-export class NzDemoSelectBigDataComponent implements OnInit {
+export class NzDemoSelectBigDataComponent implements OnInit, OnDestroy {
   form: FormGroup;
   listOfOption: Array<{ value: string; label: string }> = [];
-  listOfSelectedValue = ['a10', 'c12'];
+  formSub: Subscription;
+
+  constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
+    // это просто мок метода пост чтобы не происходил реальный запрос
+    this.http.post = (url: string, data) => of(data);
+
     this.form = new FormGroup({
       list: new FormControl(),
     });
-    this.form.controls.list.valueChanges.subscribe((val) => console.log(val));
+    this.formSub = this.form.controls.list.valueChanges.pipe(
+      debounceTime(2000),
+      mergeMap((data) => this.http.post('url', data))
+    ).subscribe(
+      (data) => console.log('выполнено сохранение ', data)
+    );
+
+    this.createItems();
+  }
+
+  ngOnDestroy(): void {
+    this.formSub?.unsubscribe();
+  }
+
+  private createItems(): void {
     const children: string[] = [];
     for (let i = 10; i < 10000; i++) {
       children.push(`${i.toString(36)}${i}`);
