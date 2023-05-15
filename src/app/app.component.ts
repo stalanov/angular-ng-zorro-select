@@ -1,8 +1,15 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
 import { FormGroup, FormControl } from '@angular/forms';
+import { NzSelectComponent } from 'ng-zorro-antd/select';
 import { of, Subscription } from 'rxjs';
-import { debounceTime, mergeMap } from 'rxjs/operators';
+import { debounceTime, mergeMap, tap } from 'rxjs/operators';
 
 @Component({
   selector: 'nz-demo-select-big-data',
@@ -27,6 +34,7 @@ import { debounceTime, mergeMap } from 'rxjs/operators';
   ],
 })
 export class NzDemoSelectBigDataComponent implements OnInit, OnDestroy {
+  @ViewChild(NzSelectComponent) select: NzSelectComponent;
   form: FormGroup;
   listOfOption: Array<{ value: string; label: string }> = [];
   formSub: Subscription;
@@ -40,12 +48,16 @@ export class NzDemoSelectBigDataComponent implements OnInit, OnDestroy {
     this.form = new FormGroup({
       list: new FormControl(),
     });
-    this.formSub = this.form.controls.list.valueChanges.pipe(
-      debounceTime(2000),
-      mergeMap((data) => this.http.post('url', data))
-    ).subscribe(
-      (data) => console.log('выполнено сохранение ', data)
-    );
+    this.formSub = this.form.controls.list.valueChanges
+      .pipe(
+        debounceTime(2000),
+        tap(() => {
+          this.select.blur();
+          this.select.setOpenState(false);
+        }),
+        mergeMap((data) => this.http.post('url', data))
+      )
+      .subscribe((data) => console.log('выполнено сохранение ', data));
 
     this.createItems();
   }
